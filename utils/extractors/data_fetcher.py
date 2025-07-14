@@ -30,7 +30,7 @@ def fetch_standing_json(tournament, season):
             f"https://www.sofascore.com/api/v1/unique-tournament/"
             f"{tournament['unique_tournament']}/season/{season['id']}/standings/total"
         )
-    
+    # https://www.sofascore.com/api/v1/unique-tournament/17/season/61627/standings/total
     return fetch_json(standings_url)
 
 def fetch_rounds_json(tournament, season):
@@ -46,7 +46,7 @@ def fetch_round_events(tournament, season, round_number):
         f"https://www.sofascore.com/api/v1/unique-tournament/"
         f"{tournament['unique_tournament']}/season/{season['id']}/events/round/{round_number}"
     )
-    # https://www.sofascore.com/api/v1/unique-tournament/17/season/62483/events/round/1
+    # https://www.sofascore.com/api/v1/unique-tournament/17/season/61627/events/round/1
     round_response = fetch_json(round_events_url)
     round_events = round_response.get("events", [])
     return round_events

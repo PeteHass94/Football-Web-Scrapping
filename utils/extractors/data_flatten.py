@@ -1,6 +1,8 @@
+import streamlit as st
 import pandas as pd
+from datetime import datetime
 from utils.extractors.data_fetcher import fetch_json
-from utils.api.incidents import extract_goal_incidents
+from utils.api.incidents import extract_goal_incidents, compute_game_states
 
 # Extract and reshape data
 def flatten_table_row(row):
@@ -85,20 +87,36 @@ def flatten_round_row(row):
         "homeTeam.slug": row.get("homeTeam", {}).get("slug"),
         "awayTeam.id": row.get("homeTeam", {}).get("id"),
         "awayTeam.name": row.get("awayTeam", {}).get("name"),
-        "awayTeam.slug": row.get("awayTeam", {}).get("slug"),
+        "awayTeam.slug": row.get("awayTeam", {}).get("slug"),                        
         
         # Scores
         "homeScore.display": row.get("homeScore", {}).get("display"),
         "awayScore.display": row.get("awayScore", {}).get("display"),
         
+        
         # Times
         "time.injuryTime1": row.get("time", {}).get("injuryTime1"),
         "time.injuryTime2": row.get("time", {}).get("injuryTime2"),
     }
-                            
+    
+    base["match_label"] = f"{base['homeTeam.name']} vs {base['awayTeam.name']} - {base['season.name']}"
+    base["result"] = "Home" if base["homeScore.display"] > base["awayScore.display"] else "Away" if base["homeScore.display"] < base["awayScore.display"] else "Draw"          
+    base["kickoff"] = datetime.fromtimestamp(base["startTimestamp"]).strftime("%Y-%m-%d %H:%M")
+
     base["time.injuryTime1"], base["time.injuryTime2"], base["incidents.home_goals"], base["incidents.away_goals"] = extract_goal_incidents(base)
     
+    st.json(base["incidents.home_goals"], expanded=False)
+    # st.write(f"base {base['incidents.home_goals']} {base['incidents.away_goals']}")
+    
     base["time.totalTime"] = 90 + base["time.injuryTime1"] + base["time.injuryTime2"]
+    
+    base["segments"], base["gameStates"] = compute_game_states(
+        base["incidents.home_goals"],
+        base["incidents.away_goals"],
+        base["time.totalTime"],
+        base["time.injuryTime1"],
+        base["time.injuryTime2"]
+    )
     
     # Include any other columns you want in the same format:
     # "column_name": row.get("column_name", default_value)
@@ -107,7 +125,7 @@ def flatten_round_row(row):
 
 def get_flattened_round_events(round_events):
     """
-    Extracts and flattens the round events data from the provided round events.
+    Extracts and flattened the round events data from the provided round events.
     
     Args:
         round_events (list): List of round events containing match data.
@@ -117,4 +135,13 @@ def get_flattened_round_events(round_events):
     """
     flattened_data = [flatten_round_row(row) for row in round_events]
     return pd.DataFrame(flattened_data)
+    # df = pd.DataFrame(flattened_data)   
+    
+    # # Reorder columns to put match_label first
+    # if 'match_label' in df.columns:
+    #     first_cols = ['match_label']
+    #     remaining_cols = [col for col in df.columns if col not in first_cols]
+    #     df = df[first_cols + remaining_cols]
+    
+    
     
