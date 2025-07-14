@@ -105,7 +105,7 @@ def flatten_round_row(row):
 
     base["time.injuryTime1"], base["time.injuryTime2"], base["incidents.home_goals"], base["incidents.away_goals"] = extract_goal_incidents(base)
     
-    st.json(base["incidents.home_goals"], expanded=False)
+    # st.json(base["incidents.home_goals"], expanded=False)
     # st.write(f"base {base['incidents.home_goals']} {base['incidents.away_goals']}")
     
     base["time.totalTime"] = 90 + base["time.injuryTime1"] + base["time.injuryTime2"]

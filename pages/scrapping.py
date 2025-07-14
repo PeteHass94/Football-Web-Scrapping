@@ -75,10 +75,6 @@ try:
                 st.subheader("Selected Round")
                 st.write(f"Selected Round: {selected_round}")
                 
-                # round_url = f"https://www.sofascore.com/api/v1/unique-tournament/{selected_tournament['unique_tournament']}/season/{selected_season['id']}/events/round/{selected_round}"
-                # round_response = fetch_json(round_url)
-                # round_events = round_response.get("events", [])
-                
                 round_events = fetch_round_events(selected_tournament, selected_season, selected_round)
                 if round_events:
                     
@@ -134,8 +130,8 @@ try:
                         **📌 Result:** {selected_fixture['result']}
 
                         **🟥 Red Cards:**  
-                        - Home: {selected_fixture['homeRedCards']}  
-                        - Away: {selected_fixture['awayRedCards']}
+                        - Home: {selected_fixture['homeRedCards'] if selected_fixture['homeRedCards'] not in [None, 'nan'] else 0}  
+                        - Away: {selected_fixture['awayRedCards'] if selected_fixture['awayRedCards'] not in [None, 'nan'] else 0}
                         """)                        
 
                     st.subheader("Goal Incidents")
@@ -153,12 +149,13 @@ try:
                         render_goal_list(selected_fixture["incidents.away_goals"], selected_fixture["awayTeam.name"])
                     
                     st.subheader("Game States")
-                    st.json(selected_fixture["segments"])
-                    st.json(selected_fixture["gameStates"])
+                    st.json(selected_fixture["segments"], expanded=False)
+                    st.json(selected_fixture["gameStates"], expanded=False)
                     
-                    fig = render_game_state_gantt(
+                    render_game_state_gantt(
                         selected_fixture["homeTeam.name"],
                         selected_fixture["awayTeam.name"],
+                        selected_fixture["match_label"],
                         selected_fixture["time.totalTime"],
                         selected_fixture["time.injuryTime1"],
                         selected_fixture["time.injuryTime2"],
@@ -166,7 +163,7 @@ try:
                         selected_fixture["incidents.away_goals"],
                         selected_fixture["segments"]
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    # st.plotly_chart(fig, use_container_width=True)
                     
                 else:
                     st.warning("No events available for this round.")

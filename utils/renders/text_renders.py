@@ -5,8 +5,8 @@ def render_goal_list(goals, team_name):
         st.markdown("_No goals_")
         return
 
-    for g in sorted(goals, key=lambda x: (g := x["minute"])):
-        minute_str = f"{g['minute']}'"
+    for g in sorted(goals, key=lambda x: (g := x["matchMinute"])):
+        minute_str = f"{g['matchMinute']}'"
         if g.get("addedTime"):
             minute_str += f"+{g['addedTime']}"
 

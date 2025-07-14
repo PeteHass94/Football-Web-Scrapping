@@ -8,7 +8,7 @@ def extract_goal_incidents(base_row):
     home_team_name = base_row["homeTeam.name"]
     away_team_name = base_row["awayTeam.name"]
     
-    st.write(f"Extracting incidents for {home_team_name} vs {away_team_name}")
+    # st.write(f"Extracting incidents for {home_team_name} vs {away_team_name}")
     
     max_injuryTime1 = base_row["time.injuryTime1"] 
     max_injuryTime2 = base_row["time.injuryTime2"]
@@ -31,9 +31,9 @@ def extract_goal_incidents(base_row):
                     max_injuryTime2 = incident["addedTime"]
         
         if incident.get("incidentType") == "goal":
-            goal_event = {                                  
+            goal_event = {     
+                "matchMinute": incident.get("time"),                            
                 "minute": incident.get("time"),
-                "timestamp": incident.get("timeSeconds"),
                 "half": "1st" if incident.get("time") <= 45 else "2nd",
                 "addedTime": incident.get("addedTime", 0), 
                 "playerId": incident.get("player", {}).get("id"),
