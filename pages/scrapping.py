@@ -9,6 +9,7 @@ import copy
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 
 from utils.extractors.data_fetcher import fetch_json, fetch_season_json, fetch_standing_json, fetch_rounds_json, fetch_round_events
 from utils.api.tournaments import TOURNAMENTS
@@ -70,7 +71,7 @@ try:
                 current_round = rounds_data["currentRound"].get("round", 0)
                 available_rounds = [r["round"] for r in rounds_data["rounds"] if r["round"] <= current_round]
 
-                selected_round = st.selectbox("Select a Round", available_rounds)
+                selected_round = st.selectbox("Select a Round", available_rounds, index=5)
 
                 st.subheader("Selected Round")
                 st.write(f"Selected Round: {selected_round}")
@@ -102,7 +103,7 @@ try:
                                 )
                                        
                     st.subheader("Selected Fixture")
-                    selected_fixture_label = st.selectbox("Select a fixture", filtered_round_events["match_label"])
+                    selected_fixture_label = st.selectbox("Select a fixture", filtered_round_events["match_label"], index=1)
                     selected_fixture = filtered_round_events[filtered_round_events["match_label"] == selected_fixture_label].iloc[0]
                     
                     st.subheader(f"Selected Fixture - {selected_fixture_label}")
@@ -130,8 +131,8 @@ try:
                         **📌 Result:** {selected_fixture['result']}
 
                         **🟥 Red Cards:**  
-                        - Home: {selected_fixture['homeRedCards'] if selected_fixture['homeRedCards'] not in [None, 'nan'] else 0}  
-                        - Away: {selected_fixture['awayRedCards'] if selected_fixture['awayRedCards'] not in [None, 'nan'] else 0}
+                        - Home: {0 if pd.isna(selected_fixture['homeRedCards']) else selected_fixture['homeRedCards']}  
+                        - Away: {0 if pd.isna(selected_fixture['awayRedCards']) else selected_fixture['awayRedCards']}  
                         """)                        
 
                     st.subheader("Goal Incidents")

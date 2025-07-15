@@ -1,9 +1,7 @@
 import streamlit as st
 import pandas as pd
-import json
-import plotly.express as px
 import plotly.graph_objects as go
-from datetime import timedelta
+
 
 from utils.api.incidents import compute_game_states
 
@@ -35,85 +33,161 @@ def prepare_gantt_data(segments, team_name, team_type, injury_time_1):
 
 
 def plot_game_state_gantt_split(segments, goal_events, home_team_name, away_team_name, injury_time_1, injury_time_2):
+    # Prepare data
     home_data = prepare_gantt_data(segments, home_team_name, "home", injury_time_1)
     away_data = prepare_gantt_data(segments, away_team_name, "away", injury_time_1)
     df = pd.DataFrame(home_data + away_data)
 
-    half_ranges = {
-        "1st Half": (0, 45 + injury_time_1+1),
-        "2nd Half": (45, 90 + injury_time_2+1)
+    # Add row label for y-axis (e.g., "Brentford - 1st Half")
+    df["Row"] = df["Team"] + " - " + df["Half"] + " Half"
+    # Add invisible spacer rows to create padding
+    spacers = pd.DataFrame([
+        {
+            "Team": "Spacer",
+            "Row": "Home Scorers",
+            "Start": 0,
+            "End": 0.1,
+            "Duration": 0.1,
+            "State": "padding",
+            "Half": "spacer"
+        },
+        {
+            "Team": "Spacer",
+            "Row": "Away Scorers",
+            "Start": 0,
+            "End": 0.1,
+            "Duration": 0.1,
+            "State": "padding",
+            "Half": "spacer"
+        }
+    ])
+
+    df = pd.concat([spacers, df], ignore_index=True)
+    
+    fig = go.Figure()
+    color_map = {
+        "winning": "green",
+        "drawing": "blue",
+        "losing": "red"
     }
 
-    plots = {}
+    # Track which states have been added to avoid duplicate legend entries
+    added_legend = set()
 
-    for team, team_name in [("home", home_team_name), ("away", away_team_name)]:
-        for half in ["1st", "2nd"]:
-            label = f"{team_name} - {half} Half"
-            data = df[(df["Team"] == team_name) & (df["Half"] == half)]
+    for _, row in df.iterrows():
+        if row["State"] == "padding":
+            fig.add_trace(go.Bar(
+                x=[row["Duration"]],
+                y=[row["Row"]],
+                base=row["Start"],
+                orientation="h",
+                marker=dict(color="rgba(0,0,0,0)"),  # transparent
+                showlegend=False,
+                hoverinfo="skip",
+                opacity=0.0
+            ))
+            continue
+        show_legend = row["State"] not in added_legend
+        fig.add_trace(go.Bar(
+            x=[row["Duration"]],
+            y=[row["Row"]],
+            base=row["Start"],
+            orientation="h",
+            marker=dict(color=color_map[row["State"]]),
+            name=row["State"].capitalize(),
+            hovertemplate=(
+                f"<b>{row['Team']}</b><br>"
+                f"{row['State'].capitalize()}<br>"
+                f"{row['Start']} → {row['End']} min<br>"
+                "<extra></extra>"
+            ),
+            showlegend=show_legend
+        ))
+        added_legend.add(row["State"])
 
-            if data.empty:
-                continue
-            
-            fig = go.Figure()
-            color_map = {
-                "winning": "green",
-                "drawing": "blue",
-                "losing": "red"
-            }
-            for _, row in data.iterrows():
-                fig.add_trace(go.Bar(
-                    x=[row["Duration"]],
-                    y=[row["Team"]],
-                    base=row["Start"],
-                    orientation="h",
-                    marker=dict(color=color_map[row["State"]]),
-                    name=row["State"],
-                    hovertemplate=(
-                        f"<b>{row['Team']}</b><br>"
-                        f"{row['State'].capitalize()}<br>"
-                        f"{row['Start']} → {row['End']} min<br>"
-                        "<extra></extra>"
-                    ),
-                    showlegend=False  # Optional: avoid repeated legend
-                ))
+    # Set x-axis range
+    x_max = 90 + injury_time_2 + 7
+    fig.update_layout(
+        title="Game State Timeline",
+        xaxis_title="Minute of the Game",
+        yaxis=dict(
+            title="",
+            categoryorder="array",
+            categoryarray=[       
+                "Away Scorers",        
+                f"{away_team_name} - 2nd Half",
+                f"{away_team_name} - 1st Half",
+                f"{home_team_name} - 2nd Half",
+                f"{home_team_name} - 1st Half",
+                "Home Scorers"
+            ]
+        ),
+        barmode="stack",
+        xaxis=dict(type="linear", range=[0, x_max], dtick=5),
+        height=350,
+        legend_title="Game State",
+    )
 
-            x_min, x_max = half_ranges[f"{half} Half"]
+    # Track number of annotations per minute to stagger them
+    annotation_tracker = []
+    prev_goal_half = "1st"
+    prev_goal_team = ""
+    
+    for g in goal_events:
+        minute = g["minute"] + (g.get("addedTime") or 0)
+        team = g["team"]
+        player = g.get("playerShortName", g.get("player", "Unknown"))
+        is_own_goal = g.get("isOwnGoal", False)
+        text_matchMinute = f"{g['matchMinute']}'"
+        if g.get('addedTime', 0) > 0:
+            text_matchMinute += f"+ {g['addedTime']}"
+        text = f"{player} {'(OG)' if is_own_goal else ''} - {text_matchMinute}"
 
-            fig.update_layout(
-                title=label,
-                xaxis_title="Minute",
-                xaxis=dict(type="linear", range=[x_min, x_max], tick0=0, dtick=5),
-                yaxis_title=None,
-                height=200,
-                barmode="stack",
-            )
+        # Count previous goals within ±15 minutes for staggering
+        nearby_count = 0
+        nearby_count = sum(1 for m in annotation_tracker if abs(m - minute) <= 10)
+        annotation_tracker.append(minute)
 
-            # Add goals for this team and half
-            for g in goal_events:
-                if g["team"] != team:
-                    continue
-                goal_minute = g["minute"] + (g.get("addedTime") or 0)
-                goal_half = "1st" if goal_minute < 45 + injury_time_1 else "2nd"
-                if goal_half != half:
-                    continue
-                player = g.get("playerShortName", g.get("player", "Unknown"))
-                is_own_goal = g.get("isOwnGoal", False)
-                text_matchMinute = f"{g['matchMinute']}'"
-                if g['addedTime'] > 0:
-                    text_matchMinute += f"+{g['addedTime']}"
-                text = f"{player} {'(OG)' if is_own_goal else ''} - {text_matchMinute}"
+       # Positioning
+        is_home = team == "home"
+        base_y = 0.95 if is_home else 0.1
+        y_offset = (0.07 * nearby_count) if (prev_goal_team == g['team']) else 0
+        y_pos = base_y + y_offset if is_home else (base_y - y_offset)
+        
+        
+        # Clamp y to keep within visible range
+        # y_pos = min(max(y_pos, 0.01), 0.99)
 
-                fig.add_vline(
-                    x=goal_minute,
-                    line=dict(color="goldenrod", dash="dot"),
-                    annotation=dict(text=text, showarrow=True, yanchor="bottom", font_size=10, arrowcolor="goldenrod"),
-                )
+        # Reverse yanchor so arrow points **away from the plot**
+        # y_anchor = "bottom" if is_home else "top"
+        # x_anchor = "right" if ((nearby_count < 1) and (g['half'] == prev_goal_half)) else "left"
+        x_anchor = "center"
+        y_anchor = "middle"
 
-            plots[label] = fig
+        vline_color = "goldenrod" if g["team"] == "home" else "silver"
+        
+        fig.add_vline(
+            x=minute,
+            line=dict(color=vline_color, dash="dot"),
+            annotation=dict(
+                text=text,
+                yref="paper",
+                y=y_pos,
+                xanchor=x_anchor,
+                yanchor=y_anchor,  
+                showarrow=False,
+                font_size=10,
+                borderpad=1,
+                bgcolor="#1E1E2F",
+                opacity=1,
+            ),
+        )
+        prev_goal_half = g.get("half", "1st")
+        prev_goal_team = g["team"]
 
-    return plots
+    return fig
 
-def render_game_state_gantt(home_team_name, away_team_name, mathch_label, total_time, injury_time_1, injury_time_2, home_goals, away_goals, segments):
+def render_game_state_gantt(home_team_name, away_team_name, match_label, total_time, injury_time_1, injury_time_2, home_goals, away_goals, segments):
     for g in home_goals:
         g["team"] = "home"
     for g in away_goals:
@@ -121,7 +195,7 @@ def render_game_state_gantt(home_team_name, away_team_name, mathch_label, total_
 
     all_goals = home_goals + away_goals    
 
-    plots = plot_game_state_gantt_split(
+    fig = plot_game_state_gantt_split(
         segments,
         all_goals,
         home_team_name,
@@ -130,8 +204,7 @@ def render_game_state_gantt(home_team_name, away_team_name, mathch_label, total_
         injury_time_2
     )
 
-    st.subheader("Game State Timeline by Team & Half")
-    st.markdown(f"**Match:** {mathch_label} - **Total Time:** {total_time} min")
-    for label, fig in plots.items():
-        # st.markdown(f"#### {label}")
-        st.plotly_chart(fig, use_container_width=True)
+    st.subheader("Game State Timeline")
+    st.markdown(f"**Match:** {match_label} &nbsp; • &nbsp; **Total Time:** {total_time} min")
+    st.plotly_chart(fig, use_container_width=True)
+

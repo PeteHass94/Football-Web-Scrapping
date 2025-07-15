@@ -82,10 +82,14 @@ def compute_game_states(home_goals, away_goals, total_time, injury_time_1, injur
     for goal in home_goals:
         if goal['half'] == "2nd":
             goal['minute'] += injury_time_1
+        # if goal.get('addedTime', 0) > 0:
+        #     goal['minute'] += goal['addedTime']
             
     for goal in away_goals:
         if goal['half'] == "2nd":
             goal['minute'] += injury_time_1
+        # if goal.get('addedTime', 0) > 0:
+        #     goal['minute'] += goal['addedTime']
 
     # st.write(f"Home goal: {home_goals}")
     # st.write(f"Away goal: {away_goals}")
@@ -145,6 +149,8 @@ def compute_game_states(home_goals, away_goals, total_time, injury_time_1, injur
             "half": "1st"
         })
         prev_time = halves_times["1st"]
+    
+    # prev_time = 46  # Start second half from 46 minutes
     
     # Process second half goals
     for goal2 in second_half_goals:
