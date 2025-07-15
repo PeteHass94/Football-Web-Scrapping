@@ -5,7 +5,7 @@ def render_goal_list(goals, team_name):
         st.markdown("_No goals_")
         return
 
-    for g in sorted(goals, key=lambda x: (g := x["matchMinute"])):
+    for g in sorted(goals, key=lambda x: (x.get("matchMinute", 0), x.get("addedTime", 0))):
         minute_str = f"{g['matchMinute']}'"
         if g.get("addedTime"):
             minute_str += f"+{g['addedTime']}"
@@ -16,6 +16,6 @@ def render_goal_list(goals, team_name):
 
         label = f"🕒 **{minute_str}** — **{player}** (*{goal_type}*)"
         if is_own_goal:
-            label += " ⚠️ *(Own Goal)*"
+            label += " ⚠️"
 
         st.markdown(label)

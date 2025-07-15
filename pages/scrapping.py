@@ -11,7 +11,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from utils.extractors.data_fetcher import fetch_json, fetch_season_json, fetch_standing_json, fetch_rounds_json, fetch_round_events
+from utils.extractors.data_fetcher import fetch_json, fetch_seasons_json, fetch_standing_json, fetch_rounds_json, fetch_round_events
 from utils.api.tournaments import TOURNAMENTS
 from utils.extractors.data_flatten import get_flattened_standings, get_flattened_round_events
 from utils.renders.text_renders import render_goal_list
@@ -39,7 +39,7 @@ selected_tournament = next(t for t in TOURNAMENTS if t["name"] == selected_tourn
 # Fetch seasons
 # seasons_url = f"https://api.sofascore.com/api/v1/tournament/{selected_tournament['id']}/seasons"
 try:
-    seasons_response = fetch_season_json(selected_tournament)
+    seasons_response = fetch_seasons_json(selected_tournament)
     seasons_data = seasons_response.get("seasons", [])
     if not seasons_data:
         st.warning("No seasons found")
