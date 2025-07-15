@@ -1,6 +1,5 @@
 import json
 import asyncio
-from playwright.async_api import async_playwright
 
 TOURNAMENTS = [
     {"name": "Premier League", "id": 1, "unique_tournament": 17},
