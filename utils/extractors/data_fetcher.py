@@ -67,3 +67,13 @@ def fetch_round_events(tournament, season, round_number):
     round_response = fetch_json(round_events_url)
     round_events = round_response.get("events", [])
     return round_events
+
+def fetch_lineups(fixture_id):
+    round_events_url = (
+        f"https://www.sofascore.com/api/v1/event/"
+        f"{fixture_id}/lineups"
+    )
+    # https://www.sofascore.com/api/v1/event/11352546/lineups
+    round_response = fetch_json(round_events_url)
+    round_events = round_response.get("confirmed", [])
+    return round_events

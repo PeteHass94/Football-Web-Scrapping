@@ -31,30 +31,32 @@ def get_existing_fixtures():
 def insert_fixtures(fixtures):
     return supabase.table("fixtures").insert(fixtures).execute()
 
-# def fetch_fixtures_from_events(standings_json):
-#     rows = standings_json.get("standings", [])
-#     fixtures = []
-#     for row in rows:
-#         for item in row.get("rows", []):
-#             fixture = item.get("team", {})
-#             if fixture:
-#                 fixtures.append({
-#                     "fixture_id": fixture["id"],
-#                     "fixture_custom_id": fixture.get("customId"),
-#                     "home_team_id": fixture.get("homeTeam", {}).get("id"),
-#                     "away_team_id": fixture.get("awayTeam", {}).get("id"),
-#                     "season_id": fixture.get("season_id"),
-#                     "round": fixture.get("round_id"),
-#                     "kickoff_date_time": fixture.get("startTimestamp"), #convert timestamp to datetime with timezone
-#                     "injury_time_1": fixture.get("time").get("injuryTime1", 0),
-#                     "injury_time_2": fixture.get("time").get("injuryTime2", 0),
-#                     "total_time": 90+ fixture.get("injuryTime1", 0) + fixture.get("injuryTime2", 0),
-#                     "home_score": fixture.get("homeScore", {}).get("current", 0),
-#                     "away_score": fixture.get("awayScore", {}).get("current", 0),
-#                     "status": fixture.get("status", {}).get("type", "unknown"),
-#                     "result": "H" if fixture.get("homeScore", {}).get("current", 0) > fixture.get("awayScore", {}).get("current", 0) else "A" if fixture.get("homeScore", {}).get("current", 0) < fixture.get("awayScore", {}).get("current", 0) else "D",
-#                 })
-#     return fixtures
+def flatten_fixture_row(row):
+    
+    try:
+        kickoff_dt = datetime.fromtimestamp(row["startTimestamp"], tz=timezone.utc)
+    except Exception:
+        kickoff_dt = None
+    
+    return {
+        "fixture_id": row["id"],
+        "fixture_custom_id": row.get("customId"),
+        "home_team_id": row["homeTeam"]["id"],
+        "away_team_id": row["awayTeam"]["id"],
+        "season_id": row["season_id"],
+        "round": row["round_id"],
+        "kickoff_date_time": kickoff_dt.isoformat() if kickoff_dt else None,        
+        "injury_time_1": row.get("time", {}).get("injuryTime1", 0),
+        "injury_time_2": row.get("time", {}).get("injuryTime2", 0),
+        "total_time": 90 + row.get("time", {}).get("injuryTime1", 0) + row.get("time", {}).get("injuryTime2", 0),
+        "home_score": row.get("homeScore", {}).get("current", 0),
+        "away_score": row.get("awayScore", {}).get("current", 0),
+        "result": (
+            "H" if row["homeScore"]["current"] > row["awayScore"]["current"]
+            else "A" if row["homeScore"]["current"] < row["awayScore"]["current"]
+            else "D"
+        )
+    }
 
 # --- UI Flow ---
 
@@ -92,16 +94,16 @@ valid_seasons = [
     if s.get("name") and s.get("season_id") is not None
 ]
 
-season_names = ["All Seasons"] + [s["name"] for s in valid_seasons]
-# season_names = [s["name"] for s in valid_seasons]
+# season_names = ["All Seasons"] + [s["name"] for s in valid_seasons]
+season_names = [s["name"] for s in valid_seasons]
 season_map = {s["name"]: s for s in valid_seasons}
 
 selected_season_name = st.selectbox("Select Season", season_names)
 
 # Fetch Rounds
 if st.button("Fetch All Rounds from SofaScore Seasons"):
-    selected_seasons = valid_seasons if selected_season_name == "All Seasons" else [season_map[selected_season_name]]
-    # selected_seasons = [season_map[selected_season_name]]
+    # selected_seasons = valid_seasons if selected_season_name == "All Seasons" else [season_map[selected_season_name]]
+    selected_seasons = [season_map[selected_season_name]]
     
     all_api_rounds = []
     for season in selected_seasons:
@@ -122,8 +124,16 @@ if st.button("Fetch All Rounds from SofaScore Seasons"):
     st.subheader("📆 Available Rounds")
     rounds_df = pd.DataFrame(all_api_rounds)
     st.dataframe(rounds_df)
+    
+    # # Check against existing rounds
+    # existing_ids = get_existing_fixtures()
+    # already_added = [r for r in all_api_rounds if r["fixture_id"] in existing_ids]
+    # not_added = [r for r in all_api_rounds if r["fixture_id"] not in existing_ids]
 
+    # Store in session
     st.session_state["rounds_fetched"] = rounds_df
+    # st.session_state["rounds_already"] = already_added
+    # st.session_state["rounds_new"] = not_added
 
 # Fetch events for all rounds
 if "rounds_fetched" in st.session_state and st.button("Fetch Fixtures for All Rounds"):
@@ -146,8 +156,11 @@ if "rounds_fetched" in st.session_state and st.button("Fetch Fixtures for All Ro
         for e in events:
             # Just capture everything for now
             if e.get("time"):
-                fixture = {**e, "season_id": season_id, "round_id": round_id}            
-                all_fixtures.append(fixture)
+                fixture = {**e, "season_id": season_id, "round_id": round_id} 
+                if fixture.get("winnerCode") is None:
+                    continue
+                else:
+                    all_fixtures.append(fixture)
 
         
     if all_fixtures:
@@ -157,74 +170,64 @@ if "rounds_fetched" in st.session_state and st.button("Fetch Fixtures for All Ro
     else:
         st.warning("No fixtures found across all rounds.")
         
-if "fixtures_fetched" in st.session_state and st.button("➕ Add Fixtures to Supabase"):
-    raw_fixtures = st.session_state["fixtures_fetched"]
+    # Display Alread Added and New Fixtures
+    
+    
+    st.subheader("Already Added Fixtures")
     existing_ids = get_existing_fixtures()
+    
+    st.write(f"Existing IDs: {len(existing_ids)}")
+    
+    already_added = [f for f in all_fixtures if f["id"] in existing_ids]
+    not_added = [f for f in all_fixtures if f["id"] not in existing_ids]
+    
+    st.session_state["fixtures_fetched"] = all_fixtures
+    st.session_state["rounds_already"] = already_added
+    st.session_state["rounds_new"] = not_added
+    
+    
+# Display results
+if st.session_state.get("fixtures_fetched"):
+    st.subheader("✅ Fixtures Already in Supabase")
+    if st.session_state["rounds_already"]:
+        st.dataframe(pd.DataFrame(st.session_state["rounds_already"]))
+    else:
+        st.info("None yet.")   
+    st.subheader("🆕 Fixtures to Add")
+    if st.session_state["rounds_new"]:
+        st.dataframe(pd.DataFrame(st.session_state["rounds_new"]))
+        # if st.button("➕ Add New Fixtures to Supabase"):               
+            
+            
+        #     result = insert_fixtures(st.session_state["rounds_new"])
+        #     if hasattr(result, "data"):
+        #         st.success(f"{len(result.data)} fixtures inserted")
+        #         st.session_state["fixtures_fetched"] = False  # reset view
+        #     else:
+        #         st.error("Insert failed.")
+    else:
+        st.info("No new fixtures to add.")
+
+
+
+if "rounds_new" in st.session_state: # and st.button("➕ Add Fixtures to Supabase"):
+    
+    st.subheader("Fixtures to be Added")       
+    
+    raw_fixtures = st.session_state["rounds_new"]
 
     insert_rows = []
     for f in raw_fixtures:
-        if f["id"] in existing_ids:
-            continue  # skip already inserted
-
-        try:
-            kickoff_dt = datetime.fromtimestamp(f["startTimestamp"], tz=timezone.utc)
-        except Exception:
-            kickoff_dt = None
-        
-        insert_rows.append({
-            "fixture_id": f["id"],
-            "fixture_custom_id": f.get("customId"),
-            "home_team_id": f.get("homeTeam", {}).get("id"),
-            "away_team_id": f.get("awayTeam", {}).get("id"),
-            "season_id": f.get("season_id"),
-            "round": f.get("round_id"),
-            "kickoff_date_time": kickoff_dt.isoformat() if kickoff_dt else None,
-            "injury_time_1": f.get("time", {}).get("injuryTime1", 0),
-            "injury_time_2": f.get("time", {}).get("injuryTime2", 0),
-            "total_time": 90 + f.get("time", {}).get("injuryTime1", 0) + f.get("time", {}).get("injuryTime2", 0),
-            "home_score": f.get("homeScore", {}).get("current", 0),
-            "away_score": f.get("awayScore", {}).get("current", 0),
-            "result": (
-                "H" if f.get("homeScore", {}).get("current", 0) > f.get("awayScore", {}).get("current", 0)
-                else "A" if f.get("homeScore", {}).get("current", 0) < f.get("awayScore", {}).get("current", 0)
-                else "D"
-            )
-        })
+        insert_rows.append(flatten_fixture_row(f))
         
     st.dataframe(pd.DataFrame(insert_rows))
     if insert_rows:
-        result = insert_fixtures(insert_rows)
-        if hasattr(result, "data"):
-            st.success(f"🎉 {len(result.data)} fixtures inserted into Supabase")
-        else:
-            st.error("❌ Fixture insert failed")
+        if st.button("➕ Add Fixtures to Supabase"):
+            result = insert_fixtures(insert_rows)
+            if hasattr(result, "data"):
+                st.success(f"🎉 {len(result.data)} fixtures inserted into Supabase")
+            else:
+                st.error("❌ Fixture insert failed")
     else:
         st.info("No new fixtures to insert.")
                 
-    
-# # Fetch teams
-# if st.button("Fetch All Fixtures from SofaScore Rounds"):
-#     selected_seasons = valid_seasons if selected_season_name == "All Seasons" else [season_map[selected_season_name]]
-
-#     all_api_teams = []
-#     for season in selected_seasons:
-#         standings_json = fetch_standing_json(tournament, season)
-#         season_teams = fetch_teams_from_standings(standings_json)
-#         all_api_teams.extend(season_teams)
-
-#     if not all_api_teams:
-#         st.warning("No teams found")
-#         st.stop()
-
-#     # Deduplicate by team_id
-#     unique_teams = {team["team_id"]: team for team in all_api_teams}.values()
-
-#     # Check against existing team_ids
-#     existing_ids = get_existing_teams()
-#     already_added = [t for t in unique_teams if t["team_id"] in existing_ids]
-#     not_added = [t for t in unique_teams if t["team_id"] not in existing_ids]
-
-#     # Store in session
-#     st.session_state["teams_already"] = already_added
-#     st.session_state["teams_new"] = not_added
-#     st.session_state["teams_fetched"] = True

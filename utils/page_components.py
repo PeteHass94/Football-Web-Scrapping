@@ -70,6 +70,7 @@ def add_page_selector():
     st.page_link("pages/add_seasons.py", label="Add Seasons")
     st.page_link("pages/add_teams.py", label="Add Teams")
     st.page_link("pages/add_fixtures.py", label="Add Fixtures")
+    st.page_link("pages/add_players.py", label="Add Players")
     # st.page_link("pages/euro_pass_analysis.py", label="Euro 24 pass analysis")
     # st.page_link("pages/attacker_analysis.py", label="2018 Season att. analysis")
     # st.page_link("pages/run_analysis.py", label="CL 2023 run analysis")
