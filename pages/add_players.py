@@ -78,7 +78,6 @@ selected_season_name = st.selectbox("Select Season", season_names)
 
 if st.button("Fetch Fixtures"):
     fixtures = get_fixtures(season_map[selected_season_name]["id"])
-    st.write(fixtures)
     if fixtures:
         df = pd.DataFrame(fixtures)
         columns = ["fixture_id", "home_team_id", "away_team_id", "round", "kickoff_date_time"]
