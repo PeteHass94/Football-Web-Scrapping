@@ -77,3 +77,18 @@ def fetch_lineups(fixture_id):
     round_response = fetch_json(round_events_url)
     round_events = round_response.get("confirmed", [])
     return round_events
+
+def fetch_managers(fixture_id):
+    managers_url = f"https://www.sofascore.com/api/v1/event/{fixture_id}/managers"
+    # https://www.sofascore.com/api/v1/event/12436870/managers
+    return fetch_json(managers_url)
+
+def fetch_incidents(fixture_id):
+    incidents_url = f"https://www.sofascore.com/api/v1/event/{fixture_id}/incidents"
+    # https://www.sofascore.com/api/v1/event/12436870/incidents
+    return fetch_json(incidents_url)
+
+def fetch_shotmap(fixture_id):
+    shotmap_url = f"https://www.sofascore.com/api/v1/event/{fixture_id}/shotmap"
+    # https://www.sofascore.com/api/v1/event/12436870/shotmap
+    return fetch_json(shotmap_url)
