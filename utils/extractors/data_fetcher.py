@@ -75,8 +75,14 @@ def fetch_lineups(fixture_id):
     )
     # https://www.sofascore.com/api/v1/event/11352546/lineups
     round_response = fetch_json(round_events_url)
-    round_events = round_response.get("confirmed", [])
-    return round_events
+    # The response is a dict with "confirmed", "home", and "away" keys
+    # Return the entire response object, not just "confirmed" (which is a boolean)
+    return round_response
+
+def fetch_statistics(fixture_id):
+    statistics_url = f"https://www.sofascore.com/api/v1/event/{fixture_id}/statistics"
+    # https://www.sofascore.com/api/v1/event/12436870/statistics
+    return fetch_json(statistics_url)
 
 def fetch_managers(fixture_id):
     managers_url = f"https://www.sofascore.com/api/v1/event/{fixture_id}/managers"

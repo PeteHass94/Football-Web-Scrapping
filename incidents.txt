@@ -1,0 +1,20 @@
+substitution	430	10
+Fields (10): addedTime, id, incidentClass, incidentType, injury, isHome, playerIn, playerOut, reversedPeriodTime, time
+
+card	288	12
+Fields (12): addedTime, id, incidentClass, incidentType, isHome, manager, player, playerName, reason, rescinded, reversedPeriodTime, time
+
+goal	144	13
+Fields (13): addedTime, assist1, awayScore, footballPassingNetworkAction, from, homeScore, id, incidentClass, incidentType, isHome, player, reversedPeriodTime, time
+
+period	100	11
+Fields (11): addedTime, awayScore, homeScore, incidentType, isLive, periodTimeSeconds, reversedPeriodTime, reversedPeriodTimeSeconds, text, time, timeSeconds
+
+injuryTime	99	5
+Fields (5): addedTime, incidentType, length, reversedPeriodTime, time
+
+varDecision	8	9
+Fields (9): addedTime, confirmed, id, incidentClass, incidentType, isHome, player, reversedPeriodTime, time
+
+inGamePenalty	2	10
+Fields (10): description, footballPassingNetworkAction, id, incidentClass, incidentType, isHome, player, reason, reversedPeriodTime, time
